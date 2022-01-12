@@ -14,7 +14,11 @@ df = pd.read_csv('data/train.csv')
 print(df)
 print(df.info())
 
-print(df.cumsum().drop('Id', axis=1).drop('Pawpularity', axis=1))
+just_columns = df.cumsum().drop('Id', axis=1).drop('Pawpularity', axis=1)
+print(just_columns)
+print(just_columns['Collage'])
+print(just_columns['Group'])
+
 
 def plot_attribute(attribute: str) -> None:
     sorted_df = df.groupby('Pawpularity')[attribute].apply(list)
@@ -29,10 +33,3 @@ def plot_attribute(attribute: str) -> None:
 
 plot_attribute("Human")
 
-train_images = glob.glob('data/train/*.jpg')
-image = io.imread(train_images[0])
-
-i, (im1) = plt.subplots(1)
-i.set_figwidth(15)
-im1.imshow(image)
-plt.show()
