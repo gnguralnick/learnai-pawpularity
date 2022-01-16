@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import tensorflow as tf
 import pathlib
+import numpy as np
 
 train_images = glob.glob('data/train_all/*.jpg')
 # image = Image.open(train_images[5])
@@ -70,28 +71,71 @@ print(sum_height_portrait / total_portrait, sum_width_portrait / total_portrait)
 
 
 # save processed images
-for img_path in portraits:
-    # grayscale
-    image = Image.open(img_path).convert('L')
-    # resize image
-    image = image.resize((650, 920))
-    image = image.resize((180, 256))
-    # image.save(img_path.replace('train_all', 'train'))
+# for img_path in portraits:
+#     image = Image.open(img_path)
+#     # NOTE: grayscale <- can do this here or just in preprocessing
+#     # image = image.convert('L')
+#
+#     # resize image
+#     image = image.resize((650, 920))
+#     image = image.resize((180, 256))
+#
+#     # image.save(img_path.replace('train_all', 'train2/all'))
 
 
 print('\n\nkeras image dataset from directory:\n')
 
 
 # keras data preprocessing
-directory = 'data/train'
+# directory = 'data/train_bw' # directory with grayscaled images
+directory = 'data/train_col'  # directory with coloured images
+
+
 print(directory)
-# directory = '/data/processed_train_elizabeth/'
 
 print('directory is valid??', os.path.isdir(directory))
 # print(len(os.listdir('data/processed_train_elizabeth')))
 
 
+# train_ds, val_ds with coloured images
 train_ds = tf.keras.preprocessing.image_dataset_from_directory(directory=directory, labels=pawpularity, color_mode='grayscale', image_size=(180, 256), seed=1000, validation_split=0.2, subset='training')
 val_ds = tf.keras.preprocessing.image_dataset_from_directory(directory=directory, labels=pawpularity, color_mode='grayscale', image_size=(180, 256), seed=1000, validation_split=0.2, subset='validation')
 
+# viewing first 10 images
+# plt.figure(figsize=(10, 10))
+# for images, labels in train_ds.take(1):
+#     for i in range(9):
+#         ax = plt.subplot(3, 3, i + 1)
+#         plt.imshow(images[i].numpy().astype("uint8"), cmap='gray')
+#         plt.title(int(labels[i]))
+#         plt.axis("off")
+# plt.show()
+
+
+# standardize data
+# rgb values are in [0, 255]
+# NOTE: this works but tbh i have no clue what's really going on
+#       other option is to include the layer inside model definition
+normalization_layer = tf.keras.layers.Rescaling(1./255)
+# normalizing training ds
+normalized_train_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
+train_image_batch, train_labels_batch = next(iter(normalized_train_ds))
+print('len train batch: ', len(train_image_batch)) # only 32?
+first_image_train = train_image_batch[0]
+print(np.min(first_image_train), np.max(first_image_train), np.mean(first_image_train))
+
+# normalizing validating ds
+normalized_val_ds = val_ds.map(lambda x, y: (normalization_layer(x), y))
+val_image_batch, val_labels_batch = next(iter(normalized_val_ds))
+print('len val batch: ', len(val_image_batch)) # only 32?
+first_image_val = val_image_batch[0]
+print(np.min(first_image_val), np.max(first_image_val), np.mean(first_image_val))
+
+
+
+# umm, configure dataset for performance? (saw this in a tutorial)
+# AUTOTUNE = tf.data.AUTOTUNE
+#
+# train_ds = train_ds.cache().prefetch(buffer_size=AUTOTUNE)
+# val_ds = val_ds.cache().prefetch(buffer_size=AUTOTUNE)
 
