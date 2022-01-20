@@ -3,6 +3,8 @@ from tensorflow.keras import datasets, layers, models
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy import loadtxt
+import os
+from keras.models import model_from_json
 
 pawpularity = list(loadtxt('data/processed_train/pawpularity.txt', delimiter='\n', unpack=False))
 
@@ -41,34 +43,6 @@ val_images = np.concatenate([x for x, y in val_ds], axis=0).squeeze()
 #         plt.axis("off")
 # plt.show()
 
-
-# standardize data
-# rgb values are in [0, 255]
-# NOTE: this works but tbh i have no clue what's really going on
-#       other option is to include the layer inside model definition
-# normalization_layer = tf.keras.layers.Rescaling(1./255)
-# # normalizing training ds
-# normalized_train_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
-# train_image_batch, train_labels_batch = next(iter(normalized_train_ds))
-# print('len train batch: ', len(train_image_batch)) # only 32?
-# first_image_train = train_image_batch[0]
-# print(np.min(first_image_train), np.max(first_image_train), np.mean(first_image_train))
-#
-# # normalizing validating ds
-# normalized_val_ds = val_ds.map(lambda x, y: (normalization_layer(x), y))
-# val_image_batch, val_labels_batch = next(iter(normalized_val_ds))
-# print('len val batch: ', len(val_image_batch)) # only 32?
-# first_image_val = val_image_batch[0]
-# print(np.min(first_image_val), np.max(first_image_val), np.mean(first_image_val))
-
-
-
-# umm, configure dataset for performance? (saw this in a tutorial)
-# AUTOTUNE = tf.data.AUTOTUNE
-#
-# train_ds = train_ds.cache().prefetch(buffer_size=AUTOTUNE)
-# val_ds = val_ds.cache().prefetch(buffer_size=AUTOTUNE)
-
 model = models.Sequential()
 model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=(180, 256, 1)))
 model.add(layers.MaxPooling2D((2, 2)))
@@ -100,4 +74,28 @@ plt.show()
 
 test_loss, test_acc = model.evaluate(val_images, val_labels, verbose=2)
 
+# saving model
+model_json = model.to_json()
+with open('model.json', 'w') as json_file:
+    json_file.write(model_json)
+
+# serialize weights to HDF5
+model.save_weights('model.h5')
+print("# SAVED")
+
 print(test_acc)
+
+
+# loading model
+json_file = open('model.json', 'r')
+loaded_model_json = json_file.read()
+json_file.close()
+loaded_model = model_from_json(loaded_model_json)
+loaded_model.load_weights('model.h5')
+print('# loaded model from disk')
+
+loaded_model.compile(optimizer='adam',
+                     loss='mse',
+                     metrics=[tf.keras.metrics.RootMeanSquaredError()])
+score = loaded_model.evaluate(val_images, val_labels, verbose=2)
+print("%s: %.2f%%" % (loaded_model.metrics_names[1], score[1]*100))
